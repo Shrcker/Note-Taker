@@ -5,7 +5,7 @@ const fs = require("fs");
 const util = require("util");
 
 app.use(express.json());
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "/public")));
