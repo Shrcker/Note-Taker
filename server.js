@@ -2,36 +2,87 @@ const express = require("express");
 const app = express();
 const path = require("path");
 const fs = require("fs");
+const util = require("util");
+const { id } = require("./db/notes.json");
 
 app.use(express.json());
 const PORT = 3001;
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "/public")));
-
-// Using regular expressions to accept routes that begin ( ^ ) then end ( $ )
-// with a forward slash, or ( | ) if index.html is directly requested.
-// Using .html in the request is optional ( ()? ).
-app.get("^/$|/index(.html)?", (req, res) => {
-  res.sendFile("./public/index.html", { root: __dirname });
-});
+const readFromFile = util.promisify(fs.readFile);
 
 app.get("/notes(.html)?", (req, res) => {
   res.sendFile("./public/notes.html", { root: __dirname });
 });
 
-app.post("api/notes(.html)?", (req, res) => {
-  console.info(`${req.method} request received to add a review`);
+const readAndAppend = (content, file) => {
+  fs.readFile(file, "utf8", (error, data) => {
+    if (error) {
+      console.error(error);
+    } else {
+      const parsedData = JSON.parse(data);
+      parsedData.push(content);
+      fs.writeFile(file, JSON.stringify(parsedData, null, 4), (error) => {
+        error ? console.error(error) : console.info(`\nData written to ${file}`);
+      });
+    }
+  });
+};
+
+app.get("/api/notes", (req, res) => {
+  readFromFile("./db/notes.json").then((data) => res.json(JSON.parse(data)));
 });
 
-// app.post("/notes", (req, res) => {
-//   const { title, text } = req.body;
+app.post("/api/notes", (req, res) => {
+  const { title, text } = req.body;
+  const database = readFromFile("./db/notes.json").then((data) => {
+    const database = JSON.parse(data);
 
-//   res.json(`${req.method} request received`);
-//   console.info(req.rawHeaders);
-//   console.info(`${req.method} request received`);
-// });
+    if ((title, text)) {
+      const newNote = {
+        title,
+        text,
+        id: Date.now(),
+      };
+      const response = {
+        status: "Successfully saved note!",
+        body: newNote,
+      };
+
+      readAndAppend(newNote, "./db/notes.json");
+      res.json(response);
+    } else {
+      res.json("Error in saving note");
+    }
+  });
+});
+
+app.delete("/api/notes/*", (req, res) => {
+  const originalUrl = req.originalUrl;
+  const requestId = originalUrl.match(/\d+/g, "")[0];
+  const notes = "./db/notes.json";
+
+  const parseRequest = readFromFile(notes).then((data) => {
+    const database = JSON.parse(data);
+
+    database.forEach((note) => {
+      if (note.id == requestId) {
+        const updatedDatabase = database.toSpliced(note, 1);
+
+        fs.writeFile(notes, JSON.stringify(updatedDatabase, null, 4), (error) => {
+          error ? console.error(error) : console.info(`\nData removed from ${notes}`);
+          res.json(updatedDatabase);
+        });
+      }
+    });
+  });
+});
+
+app.get("*", (req, res) => {
+  res.sendFile("./public/index.html", { root: __dirname });
+});
 
 app.listen(PORT, () => {
-  console.log(`Stand-in listening message at http://localhost:${PORT}`);
+  console.log(`Listening at http://localhost:${PORT}`);
 });
