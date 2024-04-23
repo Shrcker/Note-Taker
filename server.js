@@ -3,7 +3,6 @@ const app = express();
 const path = require("path");
 const fs = require("fs");
 const util = require("util");
-const { id } = require("./db/notes.json");
 
 app.use(express.json());
 const PORT = 3001;
@@ -11,10 +10,6 @@ const PORT = 3001;
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "/public")));
 const readFromFile = util.promisify(fs.readFile);
-
-app.get("/notes(.html)?", (req, res) => {
-  res.sendFile("./public/notes.html", { root: __dirname });
-});
 
 const readAndAppend = (content, file) => {
   fs.readFile(file, "utf8", (error, data) => {
@@ -29,6 +24,10 @@ const readAndAppend = (content, file) => {
     }
   });
 };
+
+app.get("/notes(.html)?", (req, res) => {
+  res.sendFile("./public/notes.html", { root: __dirname });
+});
 
 app.get("/api/notes", (req, res) => {
   readFromFile("./db/notes.json").then((data) => res.json(JSON.parse(data)));
